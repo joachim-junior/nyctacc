@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fdf8f2;
+  --foreground: #1c1209;
+  --tacc-canvas: #fdf8f2;
+  --tacc-ink: #1c1209;
+  --tacc-muted: #5c534a;
+  --tacc-primary: #6b1c1c;
+  --tacc-accent: #d4a738;
+  --tacc-gold: #e8c56a;
+  --tacc-cream: #f4e9d8;
+  --tacc-border: #e1d6c7;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
