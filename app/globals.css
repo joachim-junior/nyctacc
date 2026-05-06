@@ -2,21 +2,111 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Brand — unchanged */
 :root {
-  --background: #fdf8f2;
-  --foreground: #1c1209;
-  --tacc-canvas: #fdf8f2;
-  --tacc-ink: #1c1209;
-  --tacc-muted: #5c534a;
-  --tacc-primary: #6b1c1c;
-  --tacc-accent: #d4a738;
-  --tacc-gold: #e8c56a;
-  --tacc-cream: #f4e9d8;
-  --tacc-border: #e1d6c7;
+  --color-navy: #0a1f5c;
+  --color-navy-light: #1e3a8a;
+  --color-gold: #c8980a;
+  --color-gold-muted: rgba(200, 152, 10, 0.12);
+  --color-red: #b91c1c;
+  --color-white: #ffffff;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+
+  --background: #f1f5f9;
+  --foreground: var(--color-ink);
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    color: var(--foreground);
+    background-color: var(--background);
+    font-family: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-playfair), ui-serif, Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    color: var(--color-navy);
+  }
+
+  ::selection {
+    background: var(--color-gold-muted);
+    color: var(--color-navy);
+  }
+}
+
+@layer components {
+  .tacc-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .tacc-page-title {
+    @apply font-[family-name:var(--font-playfair)] text-3xl font-semibold tracking-tight text-[#0a1f5c] md:text-[2rem];
+  }
+
+  .tacc-card {
+    @apply rounded-2xl border bg-white shadow-sm;
+    border-color: rgb(226 232 240 / 0.95);
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.04),
+      0 12px 40px rgb(15 23 42 / 0.04);
+  }
+
+  .tacc-field-label {
+    @apply mb-1.5 block text-[13px] font-semibold tracking-wide text-slate-700;
+  }
+
+  .tacc-field {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[15px] text-slate-900 shadow-sm outline-none transition;
+  }
+  .tacc-field::placeholder {
+    @apply text-slate-400;
+  }
+  .tacc-field:focus {
+    border-color: #0a1f5c;
+    box-shadow: 0 0 0 4px rgba(10, 31, 92, 0.08);
+  }
+
+  .tacc-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+  }
+
+  .tacc-btn-navy {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+    @apply bg-[#0a1f5c] text-white shadow-md shadow-slate-900/10 hover:bg-[#132c6e];
+  }
+
+  .tacc-btn-gold {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+    @apply bg-[#c8980a] text-[#0a1f5c] shadow-md hover:brightness-105;
+  }
+
+  .tacc-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+    @apply border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50;
+  }
+
+  .tacc-btn-text {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition active:scale-[0.98];
+    @apply text-slate-600 hover:bg-slate-100 hover:text-[#0a1f5c];
+  }
+
+  .tacc-badge {
+    @apply inline-flex items-center rounded-lg border border-amber-200/80 bg-amber-50 px-3 py-1 text-xs font-semibold text-[#0a1f5c];
+  }
+
+  .tacc-alert {
+    @apply rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900;
+  }
 }

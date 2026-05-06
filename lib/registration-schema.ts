@@ -1,27 +1,13 @@
-import { z } from "zod";
+import { COMMITTEE_ID_ENUM } from "@/lib/data/committees";
 import { TACC_FIELDS } from "@/lib/data/fields";
 import { YOUTH_GROUPS } from "@/lib/data/groups";
+
+import { z } from "zod";
 
 const ranks = new Set(TACC_FIELDS.map((f) => f.rank));
 const groupNumbers = new Set(YOUTH_GROUPS.map((g) => g.number));
 
-export const committeeValues = [
-  "prayer",
-  "worship",
-  "evangelism",
-  "hospitality",
-  "media",
-  "photo_video",
-  "ushering",
-  "teaching",
-  "leadership",
-  "charity",
-  "health",
-  "logistics",
-  "finance",
-  "youth_children",
-  "none",
-] as const;
+export const committeeValues = COMMITTEE_ID_ENUM;
 
 const churchRoleValues = [
   "member",
@@ -59,11 +45,10 @@ export const RegistrationPayloadSchema = z
     }),
     primaryPhone: z.string().min(6),
     alternativePhone: z.string().optional(),
-    email: z
-      .preprocess(
-        (v) => (v === "" || v === undefined ? undefined : v),
-        z.string().email().optional(),
-      ),
+    email: z.preprocess(
+      (v) => (v === "" || v === undefined ? undefined : v),
+      z.string().email().optional(),
+    ),
     emergencyContactName: z.string().optional(),
     emergencyContactPhone: z.string().optional(),
     group: z.object({
@@ -80,7 +65,10 @@ export const RegistrationPayloadSchema = z
     educationLevel: z.string().optional(),
     profession: z.string().min(1),
     professionOther: z.string().optional(),
-    committees: z.array(z.enum(committeeValues)).max(2),
+    committees: z
+      .array(z.enum(COMMITTEE_ID_ENUM))
+      .min(1)
+      .max(2),
     skillsContribution: z.string().optional(),
     accommodation: z.enum(["yes", "no", "unsure"]).optional(),
     dietary: z.array(z.string()).optional(),
@@ -90,6 +78,9 @@ export const RegistrationPayloadSchema = z
     leadershipTraining: z.enum(["yes", "maybe_topic", "not_now"]).optional(),
     acceptTerms: z.literal(true),
     mediaConsent: z.enum(["yes", "no"]),
+    participantCategory: z
+      .enum(["delegate", "volunteer", "speaker", "international"])
+      .optional(),
   })
   .superRefine((data, ctx) => {
     if (!ranks.has(data.field.rank)) {
@@ -124,10 +115,7 @@ export const RegistrationPayloadSchema = z
     }
 
     const hasOtherDenom = data.churchAffiliation === "other_denomination";
-    if (
-      hasOtherDenom &&
-      !(data.otherChurchDetails?.trim().length ?? 0)
-    ) {
+    if (hasOtherDenom && !(data.otherChurchDetails?.trim().length ?? 0)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Tell us about your church and denomination",
@@ -135,38 +123,23 @@ export const RegistrationPayloadSchema = z
       });
     }
 
-    const hasNonePref = data.committees.includes("none");
-    const specific = data.committees.filter((c) => c !== "none");
-    if (hasNonePref && specific.length > 0) {
+    const uniq = new Set(data.committees);
+    if (uniq.size !== data.committees.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "\"No preference\" cannot be combined with another option",
-        path: ["committees"],
-      });
-    }
-    if (!hasNonePref && specific.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Pick one or two departments (or \"No preference\")",
-        path: ["committees"],
-      });
-    }
-    if (!hasNonePref && specific.length > 2) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Pick at most two departments",
+        message: "Duplicate committees are not allowed",
         path: ["committees"],
       });
     }
 
-    if (data.churchRoles.includes("other") && !(data.churchRoleOther?.trim())) {
+    if (data.churchRoles.includes("other") && !data.churchRoleOther?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Describe your ministry role",
         path: ["churchRoleOther"],
       });
     }
-    if (data.profession === "other" && !(data.professionOther?.trim())) {
+    if (data.profession === "other" && !data.professionOther?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "Describe your profession",

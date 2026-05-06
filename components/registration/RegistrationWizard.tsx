@@ -1,8 +1,12 @@
 "use client";
 
-import Image from "next/image";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { PaymentModal } from "@/components/payment/PaymentModal";
+import { useLanguage } from "@/contexts/LanguageContext";
+import type { CommitteeId } from "@/lib/data/committees";
+import { CONFERENCE_COMMITTEES } from "@/lib/data/committees";
 import { TACC_FIELDS } from "@/lib/data/fields";
 import { YOUTH_GROUPS } from "@/lib/data/groups";
 import {
@@ -10,47 +14,50 @@ import {
   CAMEROON_REGIONS,
   CHURCH_AFFILIATION,
   CHURCH_ROLES,
-  COMMITTEES,
   EDUCATION_LEVELS,
   PROFESSIONS,
   YEARS_IN_ASSEMBLY,
 } from "@/lib/form-options";
+import { REGISTRATION_FEE_FCFA } from "@/lib/fees";
+import type { TranslationKey } from "@/lib/i18n/translations";
 import type { RegistrationPayload } from "@/lib/registration-schema";
-import { committeeValues } from "@/lib/registration-schema";
-
-const STEPS = [
-  "You & your field",
-  "Contact & group",
-  "Church life",
-  "Study, work & conference",
-  "Prayer & consent",
-  "Review",
-] as const;
 
 type StepIndex = 0 | 1 | 2 | 3 | 4 | 5;
 
-const labelClass =
-  "mb-1 block text-sm font-medium text-[var(--tacc-ink)]";
-const inputClass =
-  "w-full rounded-lg border border-[var(--tacc-border)] bg-white px-3 py-2 text-sm text-[var(--tacc-ink)] shadow-sm outline-none transition focus:border-[var(--tacc-primary)] focus:ring-2 focus:ring-[var(--tacc-primary)]/20";
-const sectionTitle = "text-lg font-semibold text-[var(--tacc-ink)]";
+const labelClass = "tacc-field-label";
+const inputClass = "tacc-field";
 
 function FieldSet({
   legend,
+  hint,
   children,
 }: {
   legend: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="space-y-3 rounded-2xl border border-[var(--tacc-border)] bg-white/80 p-4 shadow-sm">
-      <legend className={`${sectionTitle} px-1`}>{legend}</legend>
-      {children}
-    </fieldset>
+    <section className="tacc-card p-6 sm:p-8">
+      <header className="mb-6 border-b border-slate-100 pb-5">
+        <h3 className="font-[family-name:var(--font-playfair)] text-lg font-semibold tracking-tight text-[#0a1f5c] sm:text-xl">
+          {legend}
+        </h3>
+        {hint ? <p className="mt-2 text-sm text-slate-500">{hint}</p> : null}
+      </header>
+      <div className="space-y-5">{children}</div>
+    </section>
   );
 }
-
 export function RegistrationWizard() {
+  const { lang, t } = useLanguage();
+  const STEP_KEYS = [
+    "wizard_step_you",
+    "wizard_step_contact",
+    "wizard_step_church",
+    "wizard_step_pro",
+    "wizard_step_spirit",
+    "wizard_step_review",
+  ] as const satisfies readonly TranslationKey[];
   const [step, setStep] = useState<StepIndex>(0);
   const [submitting, setSubmitting] = useState(false);
   const [resultId, setResultId] = useState<string | null>(null);
@@ -87,7 +94,7 @@ export function RegistrationWizard() {
   const [educationLevel, setEducationLevel] = useState("");
   const [profession, setProfession] = useState("");
   const [professionOther, setProfessionOther] = useState("");
-  const [committees, setCommittees] = useState<string[]>([]);
+  const [committees, setCommittees] = useState<CommitteeId[]>([]);
   const [skillsContribution, setSkillsContribution] = useState("");
   const [accommodation, setAccommodation] = useState<
     "" | "yes" | "no" | "unsure"
@@ -102,7 +109,10 @@ export function RegistrationWizard() {
   >("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [mediaConsent, setMediaConsent] = useState<"" | "yes" | "no">("");
-
+  const [participantCategory, setParticipantCategory] = useState<
+    "" | NonNullable<RegistrationPayload["participantCategory"]>
+  >("");
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const selectedField = useMemo(
     () => TACC_FIELDS.find((f) => f.rank === fieldRank),
     [fieldRank],
@@ -128,18 +138,12 @@ export function RegistrationWizard() {
     );
   }
 
-  function toggleCommittee(value: (typeof committeeValues)[number]) {
+  function toggleCommittee(id: CommitteeId) {
     setCommittees((prev) => {
-      const withoutNone = prev.filter((c) => c !== "none");
-      if (value === "none") {
-        return prev.includes("none") ? [] : ["none"];
-      }
-      let next = withoutNone.includes(value)
-        ? withoutNone.filter((c) => c !== value)
-        : [...withoutNone, value];
-      if (next.length > 2) {
-        next = next.slice(-2);
-      }
+      let next = prev.includes(id)
+        ? prev.filter((c) => c !== id)
+        : [...prev, id];
+      if (next.length > 2) next = next.slice(-2);
       return next;
     });
   }
@@ -173,18 +177,11 @@ export function RegistrationWizard() {
       if (profession === "other" && !professionOther.trim()) {
         errs.push("Describe your profession");
       }
-      const hasNone = committees.includes("none");
-      const specific = committees.filter((c) => c !== "none");
-      if (!hasNone && specific.length === 0) {
-        errs.push(
-          'Pick one or two committees, or tick "No preference"',
-        );
+      if (committees.length === 0 || committees.length > 2) {
+        errs.push("Pick one or two committees");
       }
-      if (hasNone && specific.length) {
-        errs.push('"No preference" cannot mix with another choice');
-      }
-      if (!hasNone && specific.length > 2) {
-        errs.push("Pick at most two committees");
+      if (new Set(committees).size !== committees.length) {
+        errs.push("Duplicate committees selected");
       }
     }
     if (s === 4) {
@@ -235,7 +232,7 @@ export function RegistrationWizard() {
       field: { rank: selectedField.rank, name: selectedField.name },
       primaryPhone: primaryPhone.trim(),
       alternativePhone: alternativePhone.trim() || undefined,
-      email: email.trim(),
+      email: email.trim() || undefined,
       emergencyContactName: emergencyContactName || undefined,
       emergencyContactPhone: emergencyContactPhone || undefined,
       group: {
@@ -252,7 +249,8 @@ export function RegistrationWizard() {
       educationLevel: educationLevel || undefined,
       profession,
       professionOther: professionOther || undefined,
-      committees: committees.filter(Boolean) as RegistrationPayload["committees"],
+      committees,
+      participantCategory: participantCategory || undefined,
       skillsContribution: skillsContribution || undefined,
       accommodation: accommodation || undefined,
       dietary: dietary.length ? dietary : undefined,
@@ -283,6 +281,7 @@ export function RegistrationWizard() {
         return;
       }
       setResultId(data.registrationId as string);
+      setPaymentOpen(true);
     } catch {
       setError("Network error. Try again shortly.");
     } finally {
@@ -292,47 +291,96 @@ export function RegistrationWizard() {
 
   if (resultId) {
     return (
-      <div className="mx-auto max-w-xl rounded-2xl border border-[var(--tacc-border)] bg-white p-8 text-center shadow-lg">
-        <p className="text-sm uppercase tracking-[0.2em] text-[var(--tacc-muted)]">
-          Registration captured
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold text-[var(--tacc-ink)]">
-          Thank you — you’re on the list
-        </h2>
-        <p className="mt-4 text-[var(--tacc-muted)]">
-          Reference for payment and enquiries:
-        </p>
-        <p className="mt-2 rounded-xl bg-[var(--tacc-cream)] py-4 text-xl font-semibold tracking-wide text-[var(--tacc-primary)]">
-          {resultId}
-        </p>
-        <p className="mt-6 text-sm text-[var(--tacc-muted)]">
-          Payment via Fapshi will be connected on the next milestone. Until
-          then, organisers can reconcile every submission in Atlas using this
-          ID.
-        </p>
-      </div>
+      <>
+        <PaymentModal
+          open={paymentOpen}
+          onClose={() => setPaymentOpen(false)}
+          amountFcfa={REGISTRATION_FEE_FCFA}
+          personCount={1}
+          referenceLabel={resultId}
+          email={email.trim() || undefined}
+          payerName={fullName.trim() || undefined}
+        />
+        <div className="tacc-card mx-auto max-w-lg border-t-4 border-[#c8980a] p-10 text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+            {t("success_title")}
+          </p>
+          <h2 className="mt-3 font-[family-name:var(--font-playfair)] text-2xl font-semibold text-[#0a1f5c]">
+            {t("success_sub")}
+          </h2>
+          <p className="mt-4 text-sm leading-relaxed text-slate-600">{t("success_msg")}</p>
+          <p className="mt-6 rounded-xl border border-amber-100 bg-amber-50/80 py-4 font-mono text-lg font-semibold tracking-wide text-[#0a1f5c]">
+            {resultId}
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
+            <Link href="/participants" className="tacc-btn-navy px-8">
+              {t("btn_view_list")}
+            </Link>
+            <Link href="/" className="tacc-btn-ghost px-8">
+              {t("btn_done")}
+            </Link>
+          </div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--tacc-border)] bg-white/90 px-4 py-3 shadow-sm">
-        <span className="text-sm font-medium text-[var(--tacc-muted)]">
-          Step {step + 1} of {STEPS.length}
-        </span>
-        <span className="text-sm font-semibold text-[var(--tacc-ink)]">
-          {STEPS[step]}
-        </span>
-      </div>
+    <div className="mx-auto w-full max-w-3xl space-y-8 lg:max-w-[52rem]">
+      <header className="text-center">
+        <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#c8980a]">
+          TACC NYC · 2026
+        </p>
+        <h2 className="mt-3 font-[family-name:var(--font-playfair)] text-[1.65rem] font-semibold tracking-tight text-[#0a1f5c] sm:text-3xl md:text-[2.125rem]">
+          {t("reg_title")}
+        </h2>
+        <p className="mx-auto mt-4 max-w-xl text-[15px] leading-relaxed text-slate-600">
+          {t("reg_sub")}
+        </p>
+        <p className="tacc-badge mx-auto mt-8">{t("reg_fee")}</p>
+      </header>
 
-      {error && (
-        <div
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          role="alert"
-        >
+      <section className="tacc-card overflow-hidden p-6 sm:p-8">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Step {step + 1} / {STEP_KEYS.length}
+            </p>
+            <p className="mt-1 text-lg font-semibold text-[#0a1f5c]">{t(STEP_KEYS[step])}</p>
+          </div>
+          <ol className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
+            {STEP_KEYS.map((_, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span
+                  className={`flex h-9 min-w-[2.25rem] items-center justify-center rounded-full text-[13px] font-bold tabular-nums transition ${
+                    i < step
+                      ? "bg-[#0a1f5c] text-white shadow-sm"
+                      : i === step
+                        ? "border-2 border-[#c8980a] bg-white text-[#0a1f5c] shadow-inner"
+                        : "border border-slate-200 bg-slate-50 text-slate-400"
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                {i < STEP_KEYS.length - 1 ? (
+                  <span
+                    aria-hidden
+                    className={`hidden h-0.5 w-6 sm:inline-block ${
+                      i < step ? "bg-[#0a1f5c]" : "bg-slate-200"
+                    }`}
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {error ? (
+        <div className="tacc-alert" role="alert">
           {error}
         </div>
-      )}
+      ) : null}
 
       {step === 0 && (
         <div className="space-y-6">
@@ -392,7 +440,7 @@ export function RegistrationWizard() {
                         name="gender"
                         checked={gender === g}
                         onChange={() => setGender(g)}
-                        className="text-[var(--tacc-primary)]"
+                        className="text-[#0a1f5c]"
                       />
                       {g === "male" ? "Male" : "Female"}
                     </label>
@@ -462,13 +510,37 @@ export function RegistrationWizard() {
                 onChange={(e) => setFullAddress(e.target.value)}
               />
             </div>
+            <div>
+              <label className={labelClass} htmlFor="pcat">
+                {t("th_cat")} ({lang === "fr" ? "facultatif" : "optional"})
+              </label>
+              <select
+                id="pcat"
+                className={inputClass}
+                value={participantCategory}
+                onChange={(e) =>
+                  setParticipantCategory(
+                    e.target.value === ""
+                      ? ""
+                      : (e.target.value as NonNullable<
+                          RegistrationPayload["participantCategory"]
+                        >),
+                  )
+                }
+              >
+                <option value="">—</option>
+                <option value="delegate">Delegate</option>
+                <option value="volunteer">Volunteer</option>
+                <option value="speaker">Speaker</option>
+                <option value="international">International</option>
+              </select>
+            </div>
           </FieldSet>
 
-          <FieldSet legend="Your TACC field">
-            <p className="text-sm text-[var(--tacc-muted)]">
-              Choose the field you belong to. Order follows the national
-              ranking supplied by TACC.
-            </p>
+          <FieldSet
+            legend="Your TACC field"
+            hint="Choose the field you belong to. Order follows the national ranking supplied by TACC."
+          >
             <div>
               <label className={labelClass} htmlFor="field">
                 Field
@@ -559,11 +631,10 @@ export function RegistrationWizard() {
             </div>
           </FieldSet>
 
-          <FieldSet legend="Your youth group">
-            <p className="text-sm text-[var(--tacc-muted)]">
-              Select the group you belong to. Member counts are estimates for
-              planning.
-            </p>
+          <FieldSet
+            legend="Your youth group"
+            hint="Select the group you belong to. Member counts are estimates for planning."
+          >
             <div>
               <label className={labelClass} htmlFor="group">
                 Group
@@ -594,20 +665,24 @@ export function RegistrationWizard() {
         <div className="space-y-6">
           <FieldSet legend="Church affiliation">
             <span className={labelClass}>Current status</span>
-            <div className="mt-2 space-y-2 text-sm">
+            <div className="mt-3 space-y-2 text-sm">
               {CHURCH_AFFILIATION.map((opt) => (
                 <label
                   key={opt.value}
-                  className="flex items-start gap-2 rounded-lg border border-transparent px-2 py-1 hover:bg-[var(--tacc-cream)]"
+                  className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition hover:border-slate-300 hover:bg-slate-50 ${
+                    churchAffiliation === opt.value
+                      ? "border-[#0a1f5c] bg-slate-50 ring-4 ring-[#0a1f5c]/[0.06]"
+                      : "border-slate-200 bg-white"
+                  }`}
                 >
                   <input
                     type="radio"
                     name="church"
                     checked={churchAffiliation === opt.value}
                     onChange={() => setChurchAffiliation(opt.value)}
-                    className="mt-1"
+                    className="mt-0.5"
                   />
-                  <span>{opt.label}</span>
+                  <span className="text-slate-800">{opt.label}</span>
                 </label>
               ))}
             </div>
@@ -642,15 +717,19 @@ export function RegistrationWizard() {
             )}
           </FieldSet>
 
-          <FieldSet legend="Ministry roles">
-            <p className="text-sm text-[var(--tacc-muted)]">
-              Tick every role that applies today.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
+          <FieldSet
+            legend="Ministry roles"
+            hint="Tick every role that applies today."
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
               {CHURCH_ROLES.map((role) => (
                 <label
                   key={role}
-                  className="flex items-center gap-2 text-sm capitalize"
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm capitalize transition hover:border-slate-300 ${
+                    churchRoles.includes(role)
+                      ? "border-[#0a1f5c]/30 bg-slate-50"
+                      : "border-transparent bg-slate-50/70"
+                  }`}
                 >
                   <input
                     type="checkbox"
@@ -750,27 +829,23 @@ export function RegistrationWizard() {
             )}
           </FieldSet>
 
-          <FieldSet legend="Conference service">
-            <p className="text-sm text-[var(--tacc-muted)]">
-              Pick one or two departments, or tick “No preference”.
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {COMMITTEES.map((c) => (
-                <label
-                  key={c.value}
-                  className="flex items-center gap-2 text-sm"
+          <FieldSet legend="Conference service" hint={t("q22")}>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-900">{t("comm_warn")}</p>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {CONFERENCE_COMMITTEES.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => toggleCommittee(c.id)}
+                  className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left text-xs transition ${
+                    committees.includes(c.id)
+                      ? "border-[#c8980a] bg-amber-50/90 font-semibold text-[#0a1f5c] shadow-sm"
+                      : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={committees.includes(c.value)}
-                    onChange={() =>
-                      toggleCommittee(
-                        c.value as (typeof committeeValues)[number],
-                      )
-                    }
-                  />
-                  {c.label}
-                </label>
+                  <span>{c.icon}</span>
+                  <span>{lang === "fr" ? c.fr : c.en}</span>
+                </button>
               ))}
             </div>
             <div>
@@ -908,7 +983,7 @@ export function RegistrationWizard() {
             </label>
             <div className="mt-4">
               <span className={labelClass}>Media consent</span>
-              <p className="mb-2 text-xs text-[var(--tacc-muted)]">
+              <p className="mb-2 text-xs text-slate-500">
                 Official photography / video for TACC NYC channels.
               </p>
               <div className="space-y-2 text-sm">
@@ -935,45 +1010,46 @@ export function RegistrationWizard() {
       )}
 
       {step === 5 && (
-        <div className="space-y-4 rounded-2xl border border-[var(--tacc-border)] bg-white/90 p-6 shadow-sm">
-          <h3 className={sectionTitle}>Review</h3>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-[var(--tacc-muted)]">Name</dt>
-              <dd className="font-medium">{fullName}</dd>
+        <div className="tacc-card p-8">
+          <h3 className="font-[family-name:var(--font-playfair)] text-xl font-semibold text-[#0a1f5c]">
+            Review
+          </h3>
+          <dl className="mt-8 grid gap-5 text-sm sm:grid-cols-2">
+            <div className="border-b border-slate-100 pb-4">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Name</dt>
+              <dd className="mt-1 font-medium text-slate-900">{fullName}</dd>
             </div>
-            <div>
-              <dt className="text-[var(--tacc-muted)]">Field</dt>
-              <dd className="font-medium">{selectedField?.name}</dd>
+            <div className="border-b border-slate-100 pb-4">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Field</dt>
+              <dd className="mt-1 font-medium text-slate-900">{selectedField?.name}</dd>
             </div>
-            <div>
-              <dt className="text-[var(--tacc-muted)]">Group</dt>
-              <dd className="font-medium">{selectedGroup?.name}</dd>
+            <div className="border-b border-slate-100 pb-4">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Group</dt>
+              <dd className="mt-1 font-medium text-slate-900">{selectedGroup?.name}</dd>
             </div>
-            <div>
-              <dt className="text-[var(--tacc-muted)]">Phone</dt>
-              <dd className="font-medium">{primaryPhone}</dd>
+            <div className="border-b border-slate-100 pb-4">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Phone</dt>
+              <dd className="mt-1 font-medium text-slate-900">{primaryPhone}</dd>
             </div>
-            <div className="sm:col-span-2">
-              <dt className="text-[var(--tacc-muted)]">Church</dt>
-              <dd className="font-medium capitalize">
+            <div className="border-b border-slate-100 pb-4 sm:col-span-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Church</dt>
+              <dd className="mt-1 font-medium capitalize text-slate-900">
                 {churchAffiliation.replace(/_/g, " ")}
               </dd>
             </div>
           </dl>
-          <p className="text-xs text-[var(--tacc-muted)]">
-            Need to tweak something? Use Back to walk through the earlier
-            sections.
+          <p className="mt-6 text-sm text-slate-600">
+            Need to tweak something? Use Back to walk through the earlier sections.
           </p>
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--tacc-border)] pt-4">
+      <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-8 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={goBack}
           disabled={step === 0 || submitting}
-          className="rounded-full border border-[var(--tacc-border)] px-5 py-2 text-sm font-medium text-[var(--tacc-ink)] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="tacc-btn-ghost disabled:pointer-events-none disabled:opacity-40 sm:min-w-[7rem]"
         >
           Back
         </button>
@@ -981,7 +1057,7 @@ export function RegistrationWizard() {
           <button
             type="button"
             onClick={goNext}
-            className="rounded-full bg-[var(--tacc-primary)] px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:opacity-95"
+            className="tacc-btn-navy px-10 sm:min-w-[10rem]"
           >
             Continue
           </button>
@@ -990,56 +1066,12 @@ export function RegistrationWizard() {
             type="button"
             onClick={handleSubmit}
             disabled={submitting}
-            className="rounded-full bg-[var(--tacc-accent)] px-6 py-2 text-sm font-semibold text-[var(--tacc-ink)] shadow-md transition hover:opacity-95 disabled:cursor-wait disabled:opacity-60"
+            className="tacc-btn-gold px-10 font-bold disabled:cursor-wait disabled:opacity-60 sm:min-w-[12rem]"
           >
             {submitting ? "Submitting…" : "Submit registration"}
           </button>
         )}
       </div>
     </div>
-  );
-}
-
-export function Hero() {
-  return (
-    <section className="relative isolate overflow-hidden rounded-[2rem] border border-[var(--tacc-border)] bg-black shadow-2xl">
-      <Image
-        src="/hero.jpeg"
-        alt="TACC National Youth Conference"
-        width={1600}
-        height={900}
-        className="h-[min(420px,55vh)] w-full object-cover opacity-90"
-        priority
-        sizes="100vw"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col gap-4 p-6 sm:flex-row sm:items-end sm:justify-between sm:p-10">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--tacc-gold)]">
-            The Apostolic Church Cameroon
-          </p>
-          <h1 className="mt-2 max-w-xl text-3xl font-bold leading-tight text-white sm:text-4xl">
-            National Youth Conference 2026
-          </h1>
-          <p className="mt-3 max-w-xl text-sm text-white/85">
-            Yaoundé • July 2026 — gather with thousands of young disciples for
-            worship, formation, and mission.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
-          <Image
-            src="/logo.jpeg"
-            alt="TACC logo"
-            width={56}
-            height={56}
-            className="h-14 w-14 rounded-full object-cover ring-2 ring-[var(--tacc-gold)]"
-          />
-          <div className="text-xs text-white/90">
-            <p className="font-semibold">Register online</p>
-            <p className="text-white/70">tacc.nationalyouth@gmail.com</p>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }

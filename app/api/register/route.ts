@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import { customAlphabet } from "nanoid";
 
-import { getDb } from "@/lib/mongodb";
+import { insertRegistration } from "@/lib/insert-registration";
 import { RegistrationPayloadSchema } from "@/lib/registration-schema";
-
-const makeId = customAlphabet("23456789ABCDEFGHJKLMNPQRSTUVWXYZ", 5);
 
 export async function POST(req: Request) {
   try {
@@ -17,24 +14,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = parsed.data;
-    const registrationId = `NYC2026-${makeId()}`;
-    const db = await getDb();
-    const { prayerRequest, ...rest } = body;
-
-    const doc = {
-      registrationId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      paymentStatus: "pending" as const,
-      ...rest,
-      confidential: {
-        prayerRequest: prayerRequest?.trim() ? prayerRequest.trim() : null,
-      },
-    };
-
-    await db.collection("registrations").insertOne(doc);
-
+    const registrationId = await insertRegistration(parsed.data);
     return NextResponse.json({ ok: true, registrationId }, { status: 201 });
   } catch (e) {
     const message =
