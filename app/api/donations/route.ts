@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { getFapshiEnvConfig } from "@/lib/fapshi";
 import { getDb } from "@/lib/mongodb";
 
 const DonationBodySchema = z.object({
@@ -17,6 +18,12 @@ const DonationBodySchema = z.object({
 
 export async function POST(req: Request) {
   try {
+    if (!getFapshiEnvConfig()) {
+      return NextResponse.json(
+        { error: "Payment gateway is not configured (missing FAPSHI_* env)." },
+        { status: 503 },
+      );
+    }
     const parsed = DonationBodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 });
@@ -51,7 +58,7 @@ export async function GET() {
     const donors = await db
       .collection("donations")
       .find(
-        {},
+        { paymentStatus: "paid" },
         {
           projection: {
             donorName: 1,

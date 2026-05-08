@@ -24,6 +24,44 @@ export function getFapshiEnvConfig(): FapshiEnvConfig | null {
   return { apiUser, apiKey, baseUrl };
 }
 
+/** Server-side GET `/payment-status/:transId` — used to verify payments before updating records. */
+export async function fetchFapshiTransaction(transId: string): Promise<
+  | { ok: true; data: Record<string, unknown> }
+  | { ok: false; error: string; statusCode: number }
+> {
+  const cfg = getFapshiEnvConfig();
+  if (!cfg) {
+    return {
+      ok: false,
+      error: "Payment gateway is not configured (missing FAPSHI_* env).",
+      statusCode: 503,
+    };
+  }
+  const url = `${cfg.baseUrl.replace(/\/$/, "")}/payment-status/${encodeURIComponent(transId)}`;
+  const upstream = await fetch(url, {
+    method: "GET",
+    headers: { apiuser: cfg.apiUser, apikey: cfg.apiKey },
+  });
+  let data: Record<string, unknown>;
+  try {
+    data = (await upstream.json()) as Record<string, unknown>;
+  } catch {
+    return {
+      ok: false,
+      error: "Unexpected response from payment provider",
+      statusCode: 502,
+    };
+  }
+  if (!upstream.ok) {
+    const msg =
+      typeof data.message === "string"
+        ? data.message
+        : `Status error (${upstream.status})`;
+    return { ok: false, error: msg, statusCode: upstream.status };
+  }
+  return { ok: true, data };
+}
+
 /** Fapshi `externalId` / `userId`: [a-zA-Z0-9_-]{1,100} */
 export function sanitizeExternalId(raw: string | undefined): string | undefined {
   if (!raw?.trim()) return undefined;

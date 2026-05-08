@@ -33,6 +33,7 @@ export async function GET() {
     const donationAgg = await db
       .collection("donations")
       .aggregate([
+        { $match: { paymentStatus: "paid" } },
         {
           $group: {
             _id: null,

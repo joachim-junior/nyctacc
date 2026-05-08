@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
+import { PaymentModal } from "@/components/payment/PaymentModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatFcfa } from "@/lib/fees";
 
@@ -15,7 +16,14 @@ export default function DonatePage() {
   const [anonymous, setAnonymous] = useState(false);
   const [message, setMessage] = useState("");
   const [wall, setWall] = useState<{ label: string; amountFcfa?: number }[]>([]);
-  const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [paidThankYou, setPaidThankYou] = useState(false);
+
+  const [payOpen, setPayOpen] = useState(false);
+  const [pendingDonationId, setPendingDonationId] = useState<string | null>(null);
+  const [payAmountFcfa, setPayAmountFcfa] = useState(0);
+  const [fapshiMemo, setFapshiMemo] = useState("");
 
   const loadWall = useCallback(async () => {
     try {
@@ -31,29 +39,115 @@ export default function DonatePage() {
     void loadWall();
   }, [loadWall]);
 
-  async function submitDonation() {
+  function resolveAmountFcfa(): number | null {
     const amt = custom.trim() !== "" ? Number(custom) : amount;
-    if (!Number.isFinite(amt) || amt < 100) return;
-    await fetch("/api/donations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amountFcfa: Math.floor(amt),
-        donorName: donorName.trim() || undefined,
-        email: donorEmail.trim() || undefined,
-        anonymous,
-        message: message.trim() || undefined,
-      }),
-    });
-    setSent(true);
-    void loadWall();
+    if (!Number.isFinite(amt) || amt < 100) return null;
+    return Math.floor(amt);
   }
+
+  async function startDonationAndPay() {
+    setFormError(null);
+    const amt = resolveAmountFcfa();
+    if (amt === null) {
+      setFormError(lang === "fr" ? "Montant invalide (minimum 100 FCFA)." : "Invalid amount (minimum 100 FCFA).");
+      return;
+    }
+
+    const dedication = message.trim();
+    const memo = dedication
+      ? `TACC NYC 2026 donation — ${dedication.slice(0, 450)}`
+      : "TACC NYC 2026 donation";
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/donations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountFcfa: amt,
+          donorName: donorName.trim() || undefined,
+          email: donorEmail.trim() || undefined,
+          anonymous,
+          message: dedication || undefined,
+        }),
+      });
+
+      const data = (await res.json()) as { donationId?: string; error?: unknown };
+
+      if (res.status === 503) {
+        setFormError(t("don_err_gateway"));
+        setSubmitting(false);
+        return;
+      }
+      if (!res.ok || typeof data.donationId !== "string") {
+        setFormError(t("don_err_save"));
+        setSubmitting(false);
+        return;
+      }
+
+      setPayAmountFcfa(amt);
+      setFapshiMemo(memo);
+      setPendingDonationId(data.donationId);
+      setPayOpen(true);
+      setPaidThankYou(false);
+    } catch {
+      setFormError(t("don_err_save"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const finalizeDonation = useCallback(
+    async (transId: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!pendingDonationId) {
+        return { ok: false, error: t("pay_status_unknown") };
+      }
+      try {
+        const res = await fetch(
+          `/api/donations/${encodeURIComponent(pendingDonationId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ transId }),
+          },
+        );
+        const data = (await res.json()) as { ok?: boolean; error?: unknown };
+        if (!res.ok) {
+          const err =
+            typeof data.error === "string"
+              ? data.error
+              : t("pay_status_unknown");
+          return { ok: false, error: err };
+        }
+        setPaidThankYou(true);
+        void loadWall();
+        return { ok: true };
+      } catch {
+        return { ok: false, error: t("pay_status_unknown") };
+      }
+    },
+    [pendingDonationId, loadWall, t],
+  );
 
   const IC = "tacc-field mt-1 text-sm";
   const LB = "tacc-field-label";
 
   return (
     <div className="tacc-shell py-12 sm:py-16">
+      <PaymentModal
+        open={payOpen}
+        onClose={() => setPayOpen(false)}
+        amountFcfa={payAmountFcfa}
+        personCount={1}
+        billKind="single"
+        referenceLabel={pendingDonationId ?? "—"}
+        externalId={pendingDonationId ?? undefined}
+        email={anonymous ? undefined : donorEmail.trim() || undefined}
+        payerName={anonymous ? undefined : donorName.trim() || undefined}
+        paymentMessage={fapshiMemo}
+        onFapshiSuccess={(tid) => finalizeDonation(tid)}
+      />
+
       <div className="tacc-card mx-auto max-w-lg p-8 sm:p-10">
         <h1 className="font-[family-name:var(--font-playfair)] text-2xl font-semibold tracking-tight text-[#0a1f5c]">
           {t("don_title")}
@@ -115,11 +209,21 @@ export default function DonatePage() {
         </label>
         <label className={`${LB} mt-6 block`}>{t("don_message")}</label>
         <textarea className={`${IC} resize-y`} rows={3} value={message} onChange={(e) => setMessage(e.target.value)} />
-        <button type="button" className="tacc-btn-navy mt-10 w-full py-3 text-[15px]" onClick={() => void submitDonation()}>
-          {t("btn_donate")}
+        {formError ? (
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+            {formError}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="tacc-btn-navy mt-10 w-full py-3 text-[15px] disabled:opacity-50"
+          disabled={submitting}
+          onClick={() => void startDonationAndPay()}
+        >
+          {submitting ? t("pay_sending_request") : t("btn_donate")}
         </button>
-        {sent ? (
-          <p className="mt-6 text-center text-sm font-medium text-emerald-800">Donation intent saved. Thank you!</p>
+        {paidThankYou ? (
+          <p className="mt-6 text-center text-sm font-medium text-emerald-800">{t("don_thank_you")}</p>
         ) : null}
       </div>
 
@@ -142,7 +246,10 @@ export default function DonatePage() {
         </div>
       </div>
       <div className="mt-12 text-center">
-        <Link href="/" className="text-sm font-medium text-[#0a1f5c] underline decoration-slate-300 underline-offset-4 hover:decoration-[#0a1f5c]">
+        <Link
+          href="/"
+          className="text-sm font-medium text-[#0a1f5c] underline decoration-slate-300 underline-offset-4 hover:decoration-[#0a1f5c]"
+        >
           ← {t("nav_home")}
         </Link>
       </div>

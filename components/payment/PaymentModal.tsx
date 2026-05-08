@@ -17,6 +17,12 @@ type Props = {
   email?: string;
   /** Shown to Fapshi as payer name when supported. */
   payerName?: string;
+  /** Use one total line only (donations); default shows per-person breakdown. */
+  billKind?: "perPerson" | "single";
+  /** Overrides default registration fee wording sent to Fapshi. */
+  paymentMessage?: string;
+  /** After Fapshi returns SUCCESSFUL, persist donation / registration server-side before showing thanks. */
+  onFapshiSuccess?: (transId: string) => Promise<{ ok: boolean; error?: string }>;
 };
 
 type PollState = "idle" | "loading" | "ok" | "bad";
@@ -30,6 +36,9 @@ export function PaymentModal({
   externalId: externalIdProp,
   email,
   payerName,
+  billKind = "perPerson",
+  paymentMessage,
+  onFapshiSuccess,
 }: Props) {
   const { lang, t } = useLanguage();
   const [busy, setBusy] = useState(false);
@@ -41,6 +50,7 @@ export function PaymentModal({
   const [apiMsg, setApiMsg] = useState<string | null>(null);
   const [pollState, setPollState] = useState<PollState>("idle");
   const [pollHint, setPollHint] = useState<string | null>(null);
+  const [persisting, setPersisting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +63,7 @@ export function PaymentModal({
     setApiMsg(null);
     setPollState("idle");
     setPollHint(null);
+    setPersisting(false);
   }, [open]);
 
   async function sendDirectPay() {
@@ -71,9 +82,10 @@ export function PaymentModal({
           email: email?.trim() || undefined,
           name: payerName?.trim() || undefined,
           message:
-            personCount > 1
+            paymentMessage?.trim() ||
+            (personCount > 1
               ? `TACC NYC 2026 — ${personCount} registrations`
-              : "TACC NYC 2026 registration fee",
+              : "TACC NYC 2026 registration fee"),
         }),
       });
       const data = (await res.json()) as {
@@ -110,6 +122,24 @@ export function PaymentModal({
       }
       const st = typeof data.status === "string" ? data.status.toUpperCase() : "";
       if (st === "SUCCESSFUL") {
+        if (onFapshiSuccess) {
+          setPersisting(true);
+          try {
+            const r = await onFapshiSuccess(transId);
+            if (!r.ok) {
+              setPollState("idle");
+              setPollHint(typeof r.error === "string" ? r.error : t("pay_status_unknown"));
+              setPersisting(false);
+              return;
+            }
+          } catch {
+            setPollState("idle");
+            setPollHint(t("pay_status_unknown"));
+            setPersisting(false);
+            return;
+          }
+          setPersisting(false);
+        }
         setPollState("ok");
         setPollHint(t("pay_status_successful"));
       } else if (st === "FAILED") {
@@ -159,10 +189,12 @@ export function PaymentModal({
           <p className="font-[family-name:var(--font-playfair)] text-[1.65rem] font-bold tabular-nums text-[#0a1f5c]">
             {formatFcfa(amountFcfa, lang)}
           </p>
-          <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
-            {personCount} ×{" "}
-            {formatFcfa(Math.round(amountFcfa / Math.max(personCount, 1)), lang)}
-          </p>
+          {billKind === "perPerson" ? (
+            <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-500">
+              {personCount} ×{" "}
+              {formatFcfa(Math.round(amountFcfa / Math.max(personCount, 1)), lang)}
+            </p>
+          ) : null}
         </div>
         <p className="mt-4 text-center text-xs text-slate-500">
           Ref:{" "}
@@ -244,10 +276,14 @@ export function PaymentModal({
             <button
               type="button"
               className="tacc-btn-ghost w-full py-3"
-              disabled={pollState === "loading"}
+              disabled={pollState === "loading" || persisting}
               onClick={() => void checkStatus()}
             >
-              {pollState === "loading" ? t("pay_status_checking") : t("pay_check_status")}
+              {persisting
+                ? t("pay_saving_record")
+                : pollState === "loading"
+                  ? t("pay_status_checking")
+                  : t("pay_check_status")}
             </button>
           </div>
         )}
@@ -263,7 +299,7 @@ export function PaymentModal({
             type="button"
             className="tacc-btn-ghost flex-1 py-3"
             onClick={onClose}
-            disabled={busy || pollState === "loading"}
+            disabled={busy || pollState === "loading" || persisting}
           >
             {phase === "sent" ? t("btn_done") : t("btn_cancel")}
           </button>

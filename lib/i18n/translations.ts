@@ -89,14 +89,20 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
       "Fuel accommodation, catering, venues, and resources for delegates",
     don_give: "Make a donation",
     don_desc:
-      "All gifts are receipted securely through FAPSHI when live — this form stores your intent.",
+      "Pay with MTN Mobile Money or Orange Money through Fapshi. Confirmed donations appear on the honour roll.",
     don_amount: "Donation amount (FCFA)",
     don_custom: "Or enter custom amount",
     don_name: "Your name",
     don_email: "Email (for receipt)",
     don_anon: "Remain anonymous",
     don_message: "Message / dedication (optional)",
-    btn_donate: "❤️ Donate via FAPSHI",
+    btn_donate: "Continue to Fapshi payment →",
+    don_err_gateway:
+      "Online payments are not available right now. Please try again later or contact support.",
+    don_err_save:
+      "We could not start your donation. Check your answers and try again.",
+    don_thank_you:
+      "Thank you — your gift is confirmed and will appear on the honour roll.",
     donor_wall: "🏆 Honour roll — thank you!",
     stats_title: "Statistics dashboard",
     stats_sub: "Confirmed registrations plus donation totals",
@@ -133,6 +139,7 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     pay_status_failed: "This payment did not complete. You can close and try again if needed.",
     pay_status_expired: "This transaction is no longer active.",
     pay_status_unknown: "Could not read payment status.",
+    pay_saving_record: "Saving confirmation…",
     pay_error_generic: "Payment request failed. Try again in a moment.",
     pay_return_title: "Payment return",
     pay_return_body:
@@ -240,14 +247,20 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
       "Participez aux coûts d'hébergement, restauration et logistique",
     don_give: "Faire un don",
     don_desc:
-      "Les reçus FAPSHI seront activés bientôt — cette page enregistre votre intention.",
+      "Payez avec MTN Mobile Money ou Orange Money via Fapshi. Les dons confirmés apparaissent sur le tableau d’honneur.",
     don_amount: "Montant du don (FCFA)",
     don_custom: "Ou montant personnalisé",
     don_name: "Votre nom",
     don_email: "Email (reçu)",
     don_anon: "Rester anonyme",
     don_message: "Message / dédicace (facultatif)",
-    btn_donate: "❤️ Donner via FAPSHI",
+    btn_donate: "Continuer vers le paiement Fapshi →",
+    don_err_gateway:
+      "Le paiement en ligne n’est pas disponible pour le moment. Réessayez plus tard ou contactez le support.",
+    don_err_save:
+      "Impossible de démarrer votre don. Vérifiez les informations et réessayez.",
+    don_thank_you:
+      "Merci — votre don est confirmé et apparaîtra sur le tableau d’honneur.",
     donor_wall: "🏆 Tableau d'honneur — merci !",
     stats_title: "Tableau de bord",
     stats_sub: "Inscriptions et dons agrégés",
@@ -284,6 +297,7 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     pay_status_failed: "Le paiement n’a pas abouti. Vous pouvez fermer et réessayer.",
     pay_status_expired: "Cette transaction n’est plus active.",
     pay_status_unknown: "Impossible de lire le statut du paiement.",
+    pay_saving_record: "Enregistrement…",
     pay_error_generic: "La demande de paiement a échoué. Réessayez.",
     pay_return_title: "Retour paiement",
     pay_return_body:
