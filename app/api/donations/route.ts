@@ -6,14 +6,31 @@ import { getFapshiEnvConfig } from "@/lib/fapshi";
 import { getDb } from "@/lib/mongodb";
 
 const DonationBodySchema = z.object({
-  amountFcfa: z.number().int().min(100).max(100_000_000),
-  donorName: z.string().optional(),
-  email: z.preprocess(
-    (v) => (v === "" || v === undefined ? undefined : v),
-    z.string().email().optional(),
+  amountFcfa: z
+    .union([z.number(), z.string()])
+    .transform((v) => Math.trunc(Number(v)))
+    .pipe(z.number().finite().int().min(100).max(100_000_000)),
+  donorName: z.preprocess(
+    (v) =>
+      v === null || v === undefined || v === "" ? undefined : v,
+    z.string().max(200).optional(),
   ),
-  anonymous: z.boolean(),
-  message: z.string().optional(),
+  email: z.preprocess(
+    (v) =>
+      v === null || v === undefined || v === "" ? undefined : String(v).trim(),
+    z.email().optional(),
+  ),
+  anonymous: z.preprocess((v) => {
+    if (v === undefined || v === null) return false;
+    if (v === true || v === "true") return true;
+    if (v === false || v === "false") return false;
+    return v;
+  }, z.boolean()),
+  message: z.preprocess(
+    (v) =>
+      v === null || v === undefined || v === "" ? undefined : v,
+    z.string().max(2000).optional(),
+  ),
 });
 
 export async function POST(req: Request) {

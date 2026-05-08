@@ -7,6 +7,29 @@ import { PaymentModal } from "@/components/payment/PaymentModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatFcfa } from "@/lib/fees";
 
+function summarizeDonationApiError(payload: unknown, fallback: string): string {
+  if (!payload || typeof payload !== "object") return fallback;
+  const raw = (payload as { error?: unknown }).error;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  if (!raw || typeof raw !== "object") return fallback;
+  const o = raw as { formErrors?: unknown; fieldErrors?: unknown };
+  const form =
+    Array.isArray(o.formErrors) ?
+      o.formErrors.filter((x): x is string => typeof x === "string")
+    : [];
+  const fieldParts: string[] = [];
+  if (o.fieldErrors && typeof o.fieldErrors === "object") {
+    for (const [key, val] of Object.entries(o.fieldErrors)) {
+      if (Array.isArray(val)) {
+        const msgs = val.filter((m): m is string => typeof m === "string");
+        if (msgs.length) fieldParts.push(`${key}: ${msgs.join(", ")}`);
+      }
+    }
+  }
+  const all = [...form, ...fieldParts].filter(Boolean);
+  return all.length ? all.join(" · ") : fallback;
+}
+
 export default function DonatePage() {
   const { lang, t } = useLanguage();
   const [amount, setAmount] = useState(5000);
@@ -80,7 +103,7 @@ export default function DonatePage() {
         return;
       }
       if (!res.ok || typeof data.donationId !== "string") {
-        setFormError(t("don_err_save"));
+        setFormError(summarizeDonationApiError(data, t("don_err_save")));
         setSubmitting(false);
         return;
       }
