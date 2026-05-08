@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { PaymentModal } from "@/components/payment/PaymentModal";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -31,6 +32,7 @@ function summarizeDonationApiError(payload: unknown, fallback: string): string {
 }
 
 export default function DonatePage() {
+  const router = useRouter();
   const { lang, t } = useLanguage();
   const [amount, setAmount] = useState(5000);
   const [custom, setCustom] = useState("");
@@ -41,7 +43,6 @@ export default function DonatePage() {
   const [wall, setWall] = useState<{ label: string; amountFcfa?: number }[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [paidThankYou, setPaidThankYou] = useState(false);
 
   const [payOpen, setPayOpen] = useState(false);
   const [pendingDonationId, setPendingDonationId] = useState<string | null>(null);
@@ -112,7 +113,6 @@ export default function DonatePage() {
       setFapshiMemo(memo);
       setPendingDonationId(data.donationId);
       setPayOpen(true);
-      setPaidThankYou(false);
     } catch {
       setFormError(t("don_err_save"));
     } finally {
@@ -142,7 +142,6 @@ export default function DonatePage() {
               : t("pay_status_unknown");
           return { ok: false, error: err };
         }
-        setPaidThankYou(true);
         void loadWall();
         return { ok: true };
       } catch {
@@ -169,6 +168,13 @@ export default function DonatePage() {
         payerName={anonymous ? undefined : donorName.trim() || undefined}
         paymentMessage={fapshiMemo}
         onFapshiSuccess={(tid) => finalizeDonation(tid)}
+        onPaymentConfirmed={({ wallet }) => {
+          if (!pendingDonationId) return;
+          setPayOpen(false);
+          router.replace(
+            `/donate/success?donationId=${encodeURIComponent(pendingDonationId)}&amount=${payAmountFcfa}&wallet=${wallet}`,
+          );
+        }}
       />
 
       <div className="tacc-card mx-auto max-w-lg p-8 sm:p-10">
@@ -245,12 +251,9 @@ export default function DonatePage() {
         >
           {submitting ? t("pay_sending_request") : t("btn_donate")}
         </button>
-        {paidThankYou ? (
-          <p className="mt-6 text-center text-sm font-medium text-emerald-800">{t("don_thank_you")}</p>
-        ) : null}
       </div>
 
-      <div className="mx-auto mt-14 max-w-2xl">
+      <div id="honour-roll" className="mx-auto mt-14 max-w-2xl scroll-mt-24">
         <h3 className="text-center font-[family-name:var(--font-playfair)] text-xl font-semibold text-[#0a1f5c]">
           {t("donor_wall")}
         </h3>

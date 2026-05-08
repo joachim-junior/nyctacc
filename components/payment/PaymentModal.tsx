@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { MobileMoneyUssdPanel } from "@/components/payment/MobileMoneyUssdPanel";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatFcfa } from "@/lib/fees";
 
@@ -23,6 +24,8 @@ type Props = {
   paymentMessage?: string;
   /** After Fapshi returns SUCCESSFUL, persist donation / registration server-side before showing thanks. */
   onFapshiSuccess?: (transId: string) => Promise<{ ok: boolean; error?: string }>;
+  /** Fired once when payment is fully confirmed in this modal (after optional onFapshiSuccess). */
+  onPaymentConfirmed?: (payload: { wallet: FapshiWallet }) => void;
 };
 
 type PollState = "idle" | "loading" | "ok" | "bad";
@@ -39,8 +42,10 @@ export function PaymentModal({
   billKind = "perPerson",
   paymentMessage,
   onFapshiSuccess,
+  onPaymentConfirmed,
 }: Props) {
   const { lang, t } = useLanguage();
+  const paymentConfirmedSentRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
@@ -64,6 +69,7 @@ export function PaymentModal({
     setPollState("idle");
     setPollHint(null);
     setPersisting(false);
+    paymentConfirmedSentRef.current = false;
   }, [open]);
 
   async function sendDirectPay() {
@@ -142,6 +148,10 @@ export function PaymentModal({
         }
         setPollState("ok");
         setPollHint(t("pay_status_successful"));
+        if (onPaymentConfirmed && !paymentConfirmedSentRef.current) {
+          paymentConfirmedSentRef.current = true;
+          onPaymentConfirmed({ wallet: medium });
+        }
       } else if (st === "FAILED") {
         setPollState("bad");
         setPollHint(t("pay_status_failed"));
@@ -251,6 +261,9 @@ export function PaymentModal({
           <div className="mt-6 space-y-4 text-left">
             <p className="text-sm font-semibold text-[#0a1f5c]">{t("pay_sent_title")}</p>
             <p className="text-sm leading-relaxed text-slate-600">{t("pay_sent_body")}</p>
+            <div className="rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-50/90 to-white px-4 py-3">
+              <MobileMoneyUssdPanel emphasize={medium} />
+            </div>
             {apiMsg ? (
               <p className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 {apiMsg}

@@ -96,7 +96,7 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     don_email: "Email (for receipt)",
     don_anon: "Remain anonymous",
     don_message: "Message / dedication (optional)",
-    btn_donate: "Continue to Fapshi payment →",
+    btn_donate: "Continue to payment with Mobile Money →",
     don_err_gateway:
       "Online payments are not available right now. Please try again later or contact support.",
     don_err_save:
@@ -104,8 +104,23 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     don_thank_you:
       "Thank you — your gift is confirmed and will appear on the honour roll.",
     donor_wall: "🏆 Honour roll — thank you!",
+    don_success_title: "Your donation is confirmed",
+    don_success_sub:
+      "Thank you for supporting the conference. Your name and amount will appear on the honour roll with other confirmed gifts.",
+    don_success_amount: "Amount donated",
+    don_success_ref: "Reference",
+    don_success_ussd_note: "USSD shortcuts (if you use the menu on your phone)",
+    don_success_cta_wall: "Honour roll",
+    don_success_cta_again: "Donate again",
+    don_success_generic:
+      "Thank you for supporting the National Youth Conference.",
+    don_success_generic_hint:
+      "If you just finished a payment, confirmation may take a moment. You can check the honour roll from the Donate page.",
     stats_title: "Statistics dashboard",
     stats_sub: "Confirmed registrations plus donation totals",
+    stats_loading: "Loading statistics…",
+    stats_error: "Statistics could not be loaded. Try again shortly or verify the database is configured.",
+    stats_retry: "Try again",
     kpi_reg: "Total registrations",
     kpi_fields: "Fields represented",
     kpi_groups: "Groups represented",
@@ -132,6 +147,12 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     pay_sent_title: "Approve on your phone",
     pay_sent_body:
       "Open your MTN MoMo or Orange Money app (or follow the USSD prompt). Approve the transaction, then tap “Check payment status” here.",
+    pay_ussd_heading: "Mobile Money menu (USSD)",
+    pay_ussd_sub: "If you need to open Mobile Money manually on your handset:",
+    pay_ussd_mtn_label: "MTN Mobile Money",
+    pay_ussd_mtn_code: "Dial *126#",
+    pay_ussd_orange_label: "Orange Money",
+    pay_ussd_orange_code: "Dial #150*50#",
     pay_check_status: "Check payment status",
     pay_status_checking: "Checking…",
     pay_status_successful: "Payment successful — thank you.",
@@ -254,7 +275,7 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     don_email: "Email (reçu)",
     don_anon: "Rester anonyme",
     don_message: "Message / dédicace (facultatif)",
-    btn_donate: "Continuer vers le paiement Fapshi →",
+    btn_donate: "Continuer vers le paiement Mobile Money →",
     don_err_gateway:
       "Le paiement en ligne n’est pas disponible pour le moment. Réessayez plus tard ou contactez le support.",
     don_err_save:
@@ -262,8 +283,24 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     don_thank_you:
       "Merci — votre don est confirmé et apparaîtra sur le tableau d’honneur.",
     donor_wall: "🏆 Tableau d'honneur — merci !",
+    don_success_title: "Votre don est confirmé",
+    don_success_sub:
+      "Merci de soutenir la conférence. Votre nom et montant figureront sur le tableau d’honneur avec les autres dons confirmés.",
+    don_success_amount: "Montant du don",
+    don_success_ref: "Référence",
+    don_success_ussd_note: "Raccourcis USSD (via le menu sur votre téléphone)",
+    don_success_cta_wall: "Tableau d’honneur",
+    don_success_cta_again: "Faire un autre don",
+    don_success_generic:
+      "Merci de soutenir la Conférence Nationale des Jeunes.",
+    don_success_generic_hint:
+      "Si vous venez de payer, la confirmation peut prendre un instant. Vérifiez le tableau d’honneur depuis la page Don.",
     stats_title: "Tableau de bord",
     stats_sub: "Inscriptions et dons agrégés",
+    stats_loading: "Chargement des statistiques…",
+    stats_error:
+      "Les statistiques n’ont pas pu être chargées. Réessayez plus tard ou vérifiez que la base de données est configurée.",
+    stats_retry: "Réessayer",
     kpi_reg: "Total inscriptions",
     kpi_fields: "Champs représentés",
     kpi_groups: "Groupes représentés",
@@ -290,6 +327,12 @@ export const TRANSLATIONS: Record<Lang, TranslationDict> = {
     pay_sent_title: "Validez sur votre téléphone",
     pay_sent_body:
       "Ouvrez votre app MTN MoMo ou Orange Money (ou suivez l’invite USSD). Validez la transaction, puis appuyez sur « Vérifier le statut » ici.",
+    pay_ussd_heading: "Menu Mobile Money (USSD)",
+    pay_ussd_sub: "Pour ouvrir Mobile Money manuellement sur votre ligne :",
+    pay_ussd_mtn_label: "MTN Mobile Money",
+    pay_ussd_mtn_code: "Composez *126#",
+    pay_ussd_orange_label: "Orange Money",
+    pay_ussd_orange_code: "Composez #150*50#",
     pay_check_status: "Vérifier le statut du paiement",
     pay_status_checking: "Vérification…",
     pay_status_successful: "Paiement réussi — merci.",

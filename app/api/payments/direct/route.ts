@@ -7,6 +7,7 @@ import {
   normalizeCmPhoneForFapshi,
   sanitizeExternalId,
 } from "@/lib/fapshi";
+import { getTrustedClientIp } from "@/lib/request-client-ip";
 
 export const runtime = "nodejs";
 
@@ -91,15 +92,22 @@ export async function POST(request: Request) {
       ? body.message.trim().slice(0, 500)
       : undefined;
 
+  const paymentHeaders = new Headers({
+    "Content-Type": "application/json",
+    apiuser: cfg.apiUser,
+    apikey: cfg.apiKey,
+  });
+  const payerIp = getTrustedClientIp(request);
+  if (payerIp) {
+    paymentHeaders.set("X-Forwarded-For", payerIp);
+    paymentHeaders.set("X-Real-IP", payerIp);
+  }
+
   const upstream = await fetch(
     `${cfg.baseUrl.replace(/\/$/, "")}/direct-pay`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apiuser: cfg.apiUser,
-        apikey: cfg.apiKey,
-      },
+      headers: paymentHeaders,
       body: JSON.stringify({
         amount: Math.floor(amount),
         phone,

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { getFapshiEnvConfig } from "@/lib/fapshi";
 import { getDb } from "@/lib/mongodb";
+import { getTrustedClientIp } from "@/lib/request-client-ip";
 
 const DonationBodySchema = z.object({
   amountFcfa: z
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
     const body = parsed.data;
     const db = await getDb();
     const donationId = `DON-${nanoid(8)}`;
+    const initiatorIp = getTrustedClientIp(req) ?? null;
     await db.collection("donations").insertOne({
       donationId,
       createdAt: new Date(),
@@ -57,6 +59,7 @@ export async function POST(req: Request) {
       email: body.anonymous ? null : body.email,
       anonymous: body.anonymous,
       message: body.message?.trim() || null,
+      initiatorIp,
     });
     return NextResponse.json({ ok: true, donationId }, { status: 201 });
   } catch (e) {

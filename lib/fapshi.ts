@@ -25,7 +25,10 @@ export function getFapshiEnvConfig(): FapshiEnvConfig | null {
 }
 
 /** Server-side GET `/payment-status/:transId` — used to verify payments before updating records. */
-export async function fetchFapshiTransaction(transId: string): Promise<
+export async function fetchFapshiTransaction(
+  transId: string,
+  opts?: { payerIp?: string },
+): Promise<
   | { ok: true; data: Record<string, unknown> }
   | { ok: false; error: string; statusCode: number }
 > {
@@ -38,9 +41,18 @@ export async function fetchFapshiTransaction(transId: string): Promise<
     };
   }
   const url = `${cfg.baseUrl.replace(/\/$/, "")}/payment-status/${encodeURIComponent(transId)}`;
+  const headers = new Headers({
+    apiuser: cfg.apiUser,
+    apikey: cfg.apiKey,
+  });
+  const ip = opts?.payerIp?.trim();
+  if (ip) {
+    headers.set("X-Forwarded-For", ip);
+    headers.set("X-Real-IP", ip);
+  }
   const upstream = await fetch(url, {
     method: "GET",
-    headers: { apiuser: cfg.apiUser, apikey: cfg.apiKey },
+    headers,
   });
   let data: Record<string, unknown>;
   try {

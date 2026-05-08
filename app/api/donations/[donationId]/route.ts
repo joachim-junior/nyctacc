@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { fetchFapshiTransaction } from "@/lib/fapshi";
 import { getDb } from "@/lib/mongodb";
+import { getTrustedClientIp } from "@/lib/request-client-ip";
 
 export const runtime = "nodejs";
 
@@ -27,8 +28,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Missing donation id" }, { status: 400 });
     }
 
+    const db = await getDb();
+    const doc = await db.collection("donations").findOne({ donationId: id });
+    if (!doc) {
+      return NextResponse.json({ error: "Donation not found" }, { status: 404 });
+    }
+
+    if (doc.paymentStatus === "paid") {
+      return NextResponse.json({ ok: true, alreadyPaid: true });
+    }
+
     const transId = parsed.data.transId;
-    const ft = await fetchFapshiTransaction(transId);
+    const storedIp =
+      typeof doc.initiatorIp === "string" && doc.initiatorIp.trim() ?
+        doc.initiatorIp.trim()
+      : undefined;
+    const payerIp = storedIp ?? getTrustedClientIp(req) ?? undefined;
+    const ft = await fetchFapshiTransaction(transId, { payerIp });
     if (!ft.ok) {
       return NextResponse.json({ error: ft.error }, { status: ft.statusCode });
     }
@@ -55,16 +71,6 @@ export async function PATCH(
 
     const paidAmount =
       typeof ft.data.amount === "number" ? Math.floor(ft.data.amount) : null;
-
-    const db = await getDb();
-    const doc = await db.collection("donations").findOne({ donationId: id });
-    if (!doc) {
-      return NextResponse.json({ error: "Donation not found" }, { status: 404 });
-    }
-
-    if (doc.paymentStatus === "paid") {
-      return NextResponse.json({ ok: true, alreadyPaid: true });
-    }
 
     const expected = doc.amountFcfa as number;
     if (

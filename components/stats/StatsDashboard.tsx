@@ -64,8 +64,10 @@ const barOpts = {
 export function StatsDashboard() {
   const { t } = useLanguage();
   const [data, setData] = useState<StatsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/stats");
       const j = await res.json();
@@ -73,6 +75,8 @@ export function StatsDashboard() {
       else setData(null);
     } catch {
       setData(null);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -80,10 +84,29 @@ export function StatsDashboard() {
     void load();
   }, [load]);
 
+  if (loading) {
+    return (
+      <div className="tacc-shell flex min-h-[50vh] flex-col items-center justify-center gap-5 py-20">
+        <div
+          className="h-11 w-11 animate-spin rounded-full border-[3px] border-slate-200 border-t-[#0a1f5c]"
+          aria-hidden
+        />
+        <p className="text-[15px] font-medium text-slate-600">{t("stats_loading")}</p>
+      </div>
+    );
+  }
+
   if (!data) {
     return (
-      <div className="tacc-shell py-24 text-center text-sm text-slate-500">
-        Could not load statistics (check MongoDB connection).
+      <div className="tacc-shell max-w-lg py-24 text-center">
+        <p className="text-sm leading-relaxed text-slate-600">{t("stats_error")}</p>
+        <button
+          type="button"
+          className="tacc-btn-navy mt-8 px-8 py-3"
+          onClick={() => void load()}
+        >
+          {t("stats_retry")}
+        </button>
       </div>
     );
   }
